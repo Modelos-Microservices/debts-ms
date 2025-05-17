@@ -2,10 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { CreateDebtDto } from './dto/create-debt.dto';
 import { UpdateDebtDto } from './dto/update-debt.dto';
 import { PrismaService } from 'src/common/prisma.service';
-import { Debt } from './entities/debt.entity';
 import { DebtStatus } from '@prisma/client';
 import { DebtPaginationDto } from './dto/debt-pagination.dto';
 import { RpcException } from '@nestjs/microservices';
+import { stat } from 'fs';
 
 @Injectable()
 export class DebtsService {
@@ -16,22 +16,23 @@ export class DebtsService {
 
   async create(createDebtDto: CreateDebtDto) {
     //validamos si el usuario ya tiene una deuda pendiente
-    const { amount, description, user_id } = createDebtDto;
+    const { amount, description, user_id, user_name, status } = createDebtDto;
 
     const existingDebt = await this.prisma.customerDebt.findFirst({
-      where: {user_id: user_id, status: DebtStatus.PENDING}
+      where: { user_id: user_id, status: DebtStatus.PENDING }
     });
     if (existingDebt) {
-      throw new Error('User already has a pending debt you can not create another one until the first one is paid');
-    } 
+      throw new RpcException({ status: 400, message: 'User already has a pending debt you can not create another one until the first one is paid' });
+    }
     //si no existe la deuda creamos una nueva
     const debt = await this.prisma.customerDebt.create({
       data: {
         amount,
         description,
         user_id: user_id,
+        user_name: user_name,
         //traemos el status directamente del enum
-        status: DebtStatus.PENDING,
+        status: status,
       }
     });
     return debt;
@@ -68,7 +69,7 @@ export class DebtsService {
       }
     });
     if (!debt) {
-      throw new Error('Debt not found');
+      throw new RpcException({status: 404, message: 'Debt not found'});
     }
     return debt;
   }
@@ -76,7 +77,12 @@ export class DebtsService {
   async update(updateDebtDto: UpdateDebtDto) {
     //verificamos si existe la deuda
     const { id, status } = updateDebtDto;
-    this.findOne(id)
+
+    try {
+      await this.findOne(id)
+    } catch (error) {
+    throw new RpcException({status: 404, message: 'Debt not found'});
+    }
     //actualizamos el status de la deuda
     const debt = await this.prisma.customerDebt.update({
       where: {

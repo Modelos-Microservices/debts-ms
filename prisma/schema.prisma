@@ -22,6 +22,7 @@ enum DebtStatus {
 model CustomerDebt {
   id          String     @id @default(uuid())
   user_id     String
+  user_name   String     @default("") 
   description String?
   amount      Float
   createdAt   DateTime   @default(now())

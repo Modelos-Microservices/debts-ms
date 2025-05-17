@@ -9,6 +9,10 @@ export class CreateDebtDto {
     user_id: string; 
 
     @IsString()
+    @IsDefined()
+    user_name: string;
+
+    @IsString()
     @IsOptional() 
     description: string;
 
@@ -22,4 +26,5 @@ export class CreateDebtDto {
     @IsEnum(DebtStatus) 
     @IsDefined()
     status: DebtStatus;
+
 }
